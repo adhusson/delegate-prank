@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
-import "forge-std/Test.sol";
-import {StdDelegator,Delegator} from "src/StdDelegator.sol";
+import "../lib/forge-std/src/Test.sol";
+import { DelegatePrank, Delegator } from "../src/DelegatePrank.sol";
 
 contract Counter {
   uint256 public number;
@@ -25,7 +25,7 @@ contract Counter {
   }
 }
 
-contract CounterTest is Test, StdDelegator {
+contract CounterTest is Test, DelegatePrank {
   Counter public counter;
   Counter public counter2;
 
@@ -38,7 +38,7 @@ contract CounterTest is Test, StdDelegator {
 
   function testInit() public {
     addDelegation(address(counter));
-    assertEq(counter.number(),3);
+    assertEq(counter.number(), 3);
   }
 
   function testIncrement() public {
@@ -55,7 +55,7 @@ contract CounterTest is Test, StdDelegator {
 
   function testDelegation(uint256 x) public {
     Delegator d = addDelegation(address(counter));
-    d.delegatecall(address(counter2),abi.encodeCall(counter2.setNumber2,(x)));
-    assertEq(counter.number2(),x);
+    d.delegatecall(address(counter2), abi.encodeCall(counter2.setNumber2, (x)));
+    assertEq(counter.number2(), x);
   }
 }

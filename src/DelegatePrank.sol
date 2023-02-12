@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.6.2 <0.9.0;
 
-import { CommonBase } from "forge-std/Base.sol";
+import { CommonBase } from "../lib/forge-std/src/Base.sol";
 
 /* 
   Make arbitrary delegatecalls from an implementation contract.
@@ -27,12 +27,11 @@ import { CommonBase } from "forge-std/Base.sol";
   Caveats:
   * Increased gas used (take it into account in your measurements).
   * Delegator's delegatecall(address,bytes) will shadow that same function at implementation.
-  * As always be careful about storage slot overlap.
-*/
+  * As always be careful about storage slot overlap.*/
 contract DelegatePrank is CommonBase {
   function addDelegation(address original) internal virtual returns (Delegator) {
     vm.etch(nextAddress(original), original.code);
-    vm.etch(original, vm.getDeployedCode("StdDelegator.sol:Delegator"));
+    vm.etch(original, vm.getDeployedCode("DelegatePrank.sol:Delegator"));
     return Delegator(payable(original));
   }
 }
@@ -52,7 +51,7 @@ contract Delegator {
 
   function proxyTo(address dest, bytes memory cd) internal {
     assembly {
-      let result := delegatecall(gas(), dest, add(cd,32), mload(cd), 0, 0)
+      let result := delegatecall(gas(), dest, add(cd, 32), mload(cd), 0, 0)
       returndatacopy(0, 0, returndatasize())
       switch result
       case 0 { revert(0, returndatasize()) }
