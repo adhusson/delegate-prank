@@ -29,7 +29,7 @@ import { CommonBase } from "forge-std/Base.sol";
   * Delegator's delegatecall(address,bytes) will shadow that same function at implementation.
   * As always be careful about storage slot overlap.
 */
-contract StdDelegator is CommonBase {
+contract DelegatePrank is CommonBase {
   function addDelegation(address original) internal virtual returns (Delegator) {
     vm.etch(nextAddress(original), original.code);
     vm.etch(original, vm.getDeployedCode("StdDelegator.sol:Delegator"));
