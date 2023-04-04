@@ -2,26 +2,29 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import { DelegatePrank, Delegator } from "src/DelegatePrank.sol";
+import {DelegatePrank} from "src/DelegatePrank.sol";
 
 contract Counter {
   uint256 public number;
-  uint256 public number2;
 
   function setNumber(uint256 newNumber) public {
     number = newNumber;
   }
 
-  function setNumber2(uint256 newNumber) public {
-    number2 = newNumber;
+  function returnSender() public view returns (address) {
+    return msg.sender;
   }
 
-  function increment() public {
-    number++;
+  function dynamicArray(uint length) public pure returns (uint[] memory) {
+    uint[] memory ret = new uint[](length);
+    for (uint i = 0;i<length;i++) {
+      ret[i]=i;
+    }
+    return ret;
   }
 
-  function increment2() public {
-    number2++;
+  function fail() public pure {
+    assert(false);
   }
 }
 
@@ -36,26 +39,44 @@ contract CounterTest is Test, DelegatePrank {
     counter.setNumber(3);
   }
 
-  function testInit() public {
-    addDelegation(address(counter));
-    assertEq(counter.number(), 3);
+  function testDelegation(uint256 x) public {
+    delegatePrank(address(counter),address(counter2),abi.encodeCall(counter2.setNumber,(x)));
+    assertEq(counter.number(),x);
   }
 
-  function testIncrement() public {
-    addDelegation(address(counter));
-    counter.increment();
-    assertEq(counter.number(), 4);
-  }
-
-  function testSetNumber(uint256 x) public {
-    addDelegation(address(counter));
-    counter.setNumber(x);
+  function testReentrancy(uint256 x) public {
+    delegatePrank(address(counter),address(counter),abi.encodeCall(counter.setNumber,(x)));
     assertEq(counter.number(), x);
   }
 
-  function testDelegation(uint256 x) public {
-    Delegator d = addDelegation(address(counter));
-    d.delegatecall(address(counter2), abi.encodeCall(counter2.setNumber2, (x)));
-    assertEq(counter.number2(), x);
+  function testReturnDataUint(uint256 x) public {
+    counter.setNumber(x);
+    (,bytes memory ret) = delegatePrank(address(counter),address(counter),abi.encodeCall(counter.number,()));
+    uint y = abi.decode(ret,(uint));
+    assertEq(y,x);
+  }
+
+  function testReturnDataArray(uint length) public {
+    length = bound(length,0,10);
+    (bool success, bytes memory ret) = delegatePrank(address(counter),address(counter),abi.encodeCall(counter.dynamicArray,(length)));
+    assertEq(success,true);
+    uint[] memory array = abi.decode(ret,(uint[]));
+
+    for (uint i = 0;i<length;i++) {
+      assertEq(array[i],i);
+    }
+  }
+
+  function testRevert() public {
+    (bool success, bytes memory ret) = delegatePrank(address(counter),address(counter),abi.encodeCall(counter.fail,()));
+    assertEq(success,false);
+    assertEq(ret,stdError.assertionError);
+  }
+
+  function testPrank(address orig) public {
+    vm.prank(orig);
+    (bool success, bytes memory ret) = delegatePrank(address(counter),address(counter),abi.encodeCall(counter.returnSender,()));
+    assertEq(success, true);
+    assertEq(abi.decode(ret,(address)),orig);
   }
 }

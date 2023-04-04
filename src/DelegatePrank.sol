@@ -2,65 +2,45 @@
 pragma solidity >=0.6.2 <0.9.0;
 
 import { CommonBase } from "forge-std/Base.sol";
+import "forge-std/console.sol";
 
 /* 
-  Make arbitrary delegatecalls from an implementation contract.
+  Make arbitrary delegatecalls to an implementation contract.
 
   Supplements vm.prank.
 
-  You already know how to make a contract c do arbitrary calls: 
+  You already know how to make a contract c call dest.fn(args):
 
-    vm.prank(address(c));
-    dest.function(args);
+    vm.prank(c);
+    dest.fn(args);
 
-  Now, to make c do arbitrary delegatecalls:
+  Now, to make c delegatecall dest.fn(args):
 
-    Delegator d = addDelegation(address(c));
-    d.delegatecall(dest,abi.encodeCall(dest.function,(args))).
+    delegatePrank(c,address(dest),abi.encodeCall(fn,(args)));
 
-  You can also ignore the return value of addDelegation and convert c later:
-
-    addDelegation(address(c));
-    Delegator d = Delegator(payable(address(c)));
-    d.delegatecall(dest,abi.encodeCall(dest.function,(args))).
-
-  Caveats:
-  * Increased gas used (take it into account in your measurements).
-  * Delegator's delegatecall(address,bytes) will shadow that same function at implementation.
-  * As always be careful about storage slot overlap.*/
+*/
 contract DelegatePrank is CommonBase {
-  function addDelegation(address original) internal virtual returns (Delegator) {
-    vm.etch(nextAddress(original), original.code);
-    vm.etch(original, vm.getDeployedCode("DelegatePrank.sol:Delegator"));
-    return Delegator(payable(original));
+  Delegator delegator = makeDelegator();
+  function makeDelegator() internal returns (Delegator) {
+    return new Delegator();
+  }
+
+  function delegatePrank(address from, address to, bytes memory cd) public returns (bool success, bytes memory ret) {
+    bytes memory code = from.code;
+    vm.etch(from,address(delegator).code);
+    (success, ret) = from.call(abi.encodeCall(delegator.etchCodeAndDelegateCall,(to,cd,code)));
   }
 }
 
-contract Delegator {
-  function delegatecall(address dest, bytes calldata cd) external payable virtual {
-    proxyTo(dest, cd);
-  }
-
-  fallback() external payable virtual {
-    proxyTo(nextAddress(address(this)), msg.data);
-  }
-
-  receive() external payable virtual {
-    proxyTo(nextAddress(address(this)), new bytes(0));
-  }
-
-  function proxyTo(address dest, bytes memory cd) internal {
-    assembly {
-      let result := delegatecall(gas(), dest, add(cd, 32), mload(cd), 0, 0)
+contract Delegator is CommonBase {
+  function etchCodeAndDelegateCall(address dest, bytes memory cd, bytes calldata code) external payable virtual {
+    vm.etch(address(this),code);
+    assembly ("memory-safe") {
+      let result := delegatecall(gas(), dest, add(cd,32), mload(cd), 0, 0)
       returndatacopy(0, 0, returndatasize())
       switch result
       case 0 { revert(0, returndatasize()) }
       default { return(0, returndatasize()) }
     }
   }
-}
-
-// shared utility
-function nextAddress(address addr) pure returns (address) {
-  return address(uint160(addr) + 1);
 }
