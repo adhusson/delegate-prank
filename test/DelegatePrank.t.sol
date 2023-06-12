@@ -32,6 +32,9 @@ contract CounterTest is Test, DelegatePrank {
   Counter public counter;
   Counter public counter2;
 
+  // NOT TESTED:
+  // - That this works in forking mode. In particular that existing contracts being delegatepranked do not fail because e.g. they need cheatcode access. I don't know how to test forking mode internally (ie just through forge tests without an external process).
+
   function setUp() public {
     counter = new Counter();
     counter2 = new Counter();
