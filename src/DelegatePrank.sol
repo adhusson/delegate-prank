@@ -16,7 +16,7 @@ import "forge-std/console.sol";
 
   Now, to make c delegatecall dest.fn(args):
 
-    delegatePrank(c,address(dest),abi.encodeCall(fn,(args)));
+    delegatePrank(c,address(dest),abi.encodeCall(dest.fn,(args)));
 
 */
 contract DelegatePrank is CommonBase {

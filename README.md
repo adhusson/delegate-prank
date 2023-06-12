@@ -22,7 +22,7 @@ dest.fn(args);
 Now you can make `c` delegatecall `dest.fn(args)`:
 
 ```solidity
-delegatePrank(c,address(dest),abi.encodeCall(fn,(args)));
+delegatePrank(c,address(dest),abi.encodeCall(dest.fn,(args)));
 ```
 
 It works by swapping the bytecode of the pranked address with a delegator contract.
@@ -38,9 +38,14 @@ import {DelegatePrank} from "delegate-prank/DelegatePrank.sol";
 
 contract MyTest is Test, DelegatePrank {
 
+  address multisig;
+  Spell spell;
+
+  ...
+
   function test_one() public {
     bytes memory cd = abi.encodeCall(spell.execute,());
-    delegatePrank(multisig,spell,cd);
+    delegatePrank(multisig,address(spell),cd);
   }
 
 }
